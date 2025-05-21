@@ -11,9 +11,9 @@ const PORT = process.env.PORT || 10000;
 const app = express();
 app.use(bodyParser.json());
 
-// Escape karakter khusus MarkdownV2 (sesuai dokumentasi resmi Telegram)
+// Escape karakter khusus MarkdownV2 (sesuai dokumentasi Telegram)
 function escapeMarkdownV2(text) {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+  return text.replace(/([_*\[\]()~`>#+=|{}.!\\-])/g, '\\$1');
 }
 
 // Fungsi kirim pesan ke Telegram
@@ -75,7 +75,7 @@ app.post("/", async (req, res) => {
 
     const msgList =
       "🧾 *Daftar 15 Domain Terakhir:*\n" +
-      data.map((d, i) => `${i + 1}. [${escapeMarkdownV2(d)}](https://${d})`).join("\n");
+      data.map((d, i) => `${i + 1}. \`${escapeMarkdownV2(d)}\``).join("\n");
 
     await sendTelegram(msgList, chatId);
   }
@@ -104,7 +104,7 @@ app.post("/", async (req, res) => {
 
         const escapedOld = escapeMarkdownV2(oldDomain);
         const escapedNew = escapeMarkdownV2(newDomain);
-        const msg = `✅ Domain [${escapedOld}](https://${oldDomain}) berhasil diganti jadi [${escapedNew}](https://${newDomain})`;
+        const msg = `✅ Domain \`${escapedOld}\` berhasil diganti jadi \`${escapedNew}\``;
         await sendTelegram(msg, chatId);
       } else {
         const escapedOld = escapeMarkdownV2(oldDomain);
@@ -135,7 +135,7 @@ setInterval(async () => {
 
     if (blocked) {
       const escaped = escapeMarkdownV2(domain);
-      const msg = `🚨 *Domain diblokir*:\n[${escaped}](https://${domain})\n\n🤖 Ganti dengan:\n\`/replace ${escaped} domain_baru\``;
+      const msg = `🚨 *Domain diblokir:* \`${escaped}\`\n\n🤖 Silakan ganti dengan domain baru via:\n/replace ${domain} namadomainbaru`;
       await sendTelegram(msg);
     }
   }
