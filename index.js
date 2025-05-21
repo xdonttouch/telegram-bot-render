@@ -29,8 +29,11 @@ async function isDomainBlocked(domain) {
     const res = await fetch(url);
     const data = await res.json();
 
-    // Fix: parse ulang jika isi value adalah string JSON
-    const rawValue = data?.[domain];
+    // Gunakan domain lowercase sebagai key
+    const domainKey = Object.keys(data).find(k => k.toLowerCase() === domain.toLowerCase());
+    if (!domainKey) return false;
+
+    const rawValue = data[domainKey];
     const parsed = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
     const blocked = parsed?.blocked;
 
@@ -107,6 +110,7 @@ setInterval(async () => {
 
   for (const domain of domains) {
     const blocked = await isDomainBlocked(domain);
+    console.log(`[CHECK] ${domain} => ${blocked ? "❌ Blokir" : "✅ Aman"}`);
     if (blocked) {
       const msg = `🚨 *Domain diblokir*: \`${domain}\`\n\n🤖 Ganti dengan:\n/replace ${domain} domain_baru`;
       await sendTelegram(msg);
