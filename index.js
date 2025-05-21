@@ -9,13 +9,30 @@ const CHAT_ID = process.env.CHAT_ID;
 const PORT = process.env.PORT || 10000;
 
 // Fungsi kirim pesan ke Telegram
+function escapeMarkdownV2(text) {
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+}
+
 async function sendTelegram(message, chatId = CHAT_ID) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   const payload = {
     chat_id: chatId,
-    text: message,
-    parse_mode: "Markdown",
+    text: escapeMarkdownV2(message),
+    parse_mode: "MarkdownV2",
   };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await res.json();
+  if (!result.ok) {
+    console.error("❌ Gagal kirim ke Telegram:", result);
+    throw new Error(result.description || "Gagal kirim pesan");
+  }
+}
 
   const res = await fetch(url, {
     method: "POST",
