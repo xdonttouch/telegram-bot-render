@@ -59,75 +59,83 @@ async function isDomainBlocked(domain) {
 }
 
 // Endpoint command Telegram
-app.post("/", async (req, res) => {
-  const msg = req.body.message;
-  const chatId = msg?.chat?.id;
-  const text = msg?.text?.trim();
+// Endpoint command Telegram
+app.post("/", (req, res) => {
+  res.sendStatus(200); // respon cepat agar Telegram tidak error 502
 
-  if (!text) return res.sendStatus(200);
+  (async () => {
+    try {
+      const msg = req.body.message || req.body.edited_message;
+      const chatId = msg?.chat?.id;
+      const text = msg?.text?.trim();
 
-  if (text === "/list") {
-    const data = fs.readFileSync("list.txt", "utf8")
-      .split("\n")
-      .map(d => d.trim())
-      .filter(Boolean)
-      .slice(-15);
+      if (!text || !chatId) return;
+      console.log("📥 Command diterima:", text);
 
-    const msgList =
-      "🧾 *Daftar 15 Domain Terakhir:*\n" +
-      data.map((d, i) => `${i + 1}. \`${escapeMarkdownV2(d)}\``).join("\n");
+      if (text === "/list") {
+        const data = fs.readFileSync("list.txt", "utf8")
+          .split("\n")
+          .map(d => d.trim())
+          .filter(Boolean)
+          .slice(-15);
 
-    await sendTelegram(msgList, chatId);
-  }
+        const msgList =
+          "🧾 *Daftar 15 Domain Terakhir:*\n" +
+          data.map((d, i) => `${i + 1}. \`${escapeMarkdownV2(d)}\``).join("\n");
 
-  else if (text.startsWith("/replace")) {
-    const parts = text.split(" ");
-    if (parts.length < 3) {
-      await sendTelegram("❌ Format salah\\!\nContoh: `/replace domain_lama domain_baru`", chatId);
-    } else {
-      const oldDomain = parts[1].trim().toLowerCase();
-      const newDomain = parts[2].trim().toLowerCase(); // ✅ normalize casing
-      const filePath = "list.txt";
-
-      // ✅ Validasi format domain baru
-      const domainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!domainRegex.test(newDomain)) {
-        await sendTelegram("❌ Domain baru tidak valid\\!", chatId);
-        return;
+        await sendTelegram(msgList, chatId);
       }
 
-      let list = fs.readFileSync(filePath, "utf8").split("\n").map(d => d.trim()).filter(Boolean);
-
-      // ✅ Cek apakah domain baru sudah ada
-      if (list.some(line => line.toLowerCase() === newDomain)) {
-        await sendTelegram(`⚠️ Domain \`${escapeMarkdownV2(newDomain)}\` sudah ada di dalam list\\!`, chatId);
-        return;
-      }
-
-      let updated = false;
-      list = list.map(line => {
-        if (line.toLowerCase() === oldDomain) {
-          updated = true;
-          return newDomain;
+      else if (text.startsWith("/replace")) {
+        const parts = text.split(" ");
+        if (parts.length < 3) {
+          await sendTelegram("❌ Format salah\\!\nContoh: `/replace domain_lama domain_baru`", chatId);
+          return;
         }
-        return line;
-      });
 
-      if (updated) {
-        fs.writeFileSync(filePath, list.join("\n") + "\n");
+        const oldDomain = parts[1].trim().toLowerCase();
+        const newDomain = parts[2].trim().toLowerCase();
+        const filePath = "list.txt";
 
-        const escapedOld = escapeMarkdownV2(oldDomain);
-        const escapedNew = escapeMarkdownV2(newDomain);
-        const msg = `✅ Domain \`${escapedOld}\` berhasil diganti jadi \`${escapedNew}\``;
-        await sendTelegram(msg, chatId);
-      } else {
-        const escapedOld = escapeMarkdownV2(oldDomain);
-        await sendTelegram(`❌ Domain \`${escapedOld}\` tidak ditemukan.`, chatId);
+        const domainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!domainRegex.test(newDomain)) {
+          await sendTelegram("❌ Domain baru tidak valid\\!", chatId);
+          return;
+        }
+
+        let list = fs.readFileSync(filePath, "utf8").split("\n").map(d => d.trim()).filter(Boolean);
+
+        if (list.some(line => line.toLowerCase() === newDomain)) {
+          await sendTelegram(`⚠️ Domain \`${escapeMarkdownV2(newDomain)}\` sudah ada di dalam list\\!`, chatId);
+          return;
+        }
+
+        let updated = false;
+        list = list.map(line => {
+          if (line.toLowerCase() === oldDomain) {
+            updated = true;
+            return newDomain;
+          }
+          return line;
+        });
+
+        if (updated) {
+          fs.writeFileSync(filePath, list.join("\n") + "\n");
+
+          const escapedOld = escapeMarkdownV2(oldDomain);
+          const escapedNew = escapeMarkdownV2(newDomain);
+          const msg = `✅ Domain \`${escapedOld}\` berhasil diganti jadi \`${escapedNew}\``;
+          await sendTelegram(msg, chatId);
+        } else {
+          const escapedOld = escapeMarkdownV2(oldDomain);
+          await sendTelegram(`❌ Domain \`${escapedOld}\` tidak ditemukan.`, chatId);
+        }
       }
-    }
-  }
 
-  res.sendStatus(200);
+    } catch (e) {
+      console.error("❌ Error di handler:", e.message);
+    }
+  })();
 });
 
 // Cek webhook aktif
