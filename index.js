@@ -29,8 +29,12 @@ async function isDomainBlocked(domain) {
     const res = await fetch(url);
     const data = await res.json();
 
-    const blockedValue = data?.[domain]?.blocked;
-    return blockedValue === true || blockedValue === "true"; // ⬅️ PERBAIKAN DI SINI
+    // Fix: parse ulang jika isi value adalah string JSON
+    const rawValue = data?.[domain];
+    const parsed = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
+    const blocked = parsed?.blocked;
+
+    return blocked === true || blocked === "true";
   } catch (e) {
     console.error(`❌ Error cek ${domain}:`, e.message);
     return false;
