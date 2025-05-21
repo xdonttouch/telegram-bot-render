@@ -8,7 +8,10 @@ const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 const PORT = process.env.PORT || 10000;
 
-// Fungsi escape karakter MarkdownV2
+const app = express();
+app.use(bodyParser.json());
+
+// Escape khusus MarkdownV2
 function escapeMarkdownV2(text) {
   return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
 }
@@ -18,8 +21,9 @@ async function sendTelegram(message, chatId = CHAT_ID) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   const payload = {
     chat_id: chatId,
-    text: escapeMarkdownV2(message),
+    text: message,
     parse_mode: "MarkdownV2",
+    disable_web_page_preview: true,
   };
 
   const res = await fetch(url, {
@@ -35,14 +39,13 @@ async function sendTelegram(message, chatId = CHAT_ID) {
   }
 }
 
-// Fungsi cek status domain
+// Cek status domain via API eksternal
 async function isDomainBlocked(domain) {
   try {
     const url = `https://check.skiddle.id/?domain=${domain}&json=true`;
     const res = await fetch(url);
     const data = await res.json();
 
-    // Gunakan domain lowercase sebagai key
     const domainKey = Object.keys(data).find(k => k.toLowerCase() === domain.toLowerCase());
     if (!domainKey) return false;
 
@@ -57,11 +60,7 @@ async function isDomainBlocked(domain) {
   }
 }
 
-// Setup Express
-const app = express();
-app.use(bodyParser.json());
-
-// Endpoint webhook Telegram
+// Endpoint utama untuk handle command Telegram
 app.post("/", async (req, res) => {
   const msg = req.body.message;
   const chatId = msg?.chat?.id;
@@ -75,12 +74,13 @@ app.post("/", async (req, res) => {
       .map((d) => d.trim())
       .filter(Boolean)
       .slice(-15);
-    const msgList = `🧾 *Daftar 15 Domain Terakhir:*\n` + data.map((d, i) => `${i + 1}. ${d}`).join("\n");
+    const msgList = `🧾 *Daftar 15 Domain Terakhir:*\n` +
+      data.map((d, i) => `${i + 1}. [${escapeMarkdownV2(d)}](https://${d})`).join("\n");
     await sendTelegram(msgList, chatId);
   } else if (text.startsWith("/replace")) {
     const parts = text.split(" ");
     if (parts.length < 3) {
-      await sendTelegram("❌ Format salah!\nContoh: /replace domain_lama domain_baru", chatId);
+      await sendTelegram("❌ Format salah\\!\nContoh: `/replace domain_lama domain_baru`", chatId);
     } else {
       const oldDomain = parts[1].trim().toLowerCase();
       const newDomain = parts[2].trim();
@@ -98,9 +98,15 @@ app.post("/", async (req, res) => {
 
       if (updated) {
         fs.writeFileSync(filePath, list.join("\n") + "\n");
-        await sendTelegram(`✅ Domain \`${oldDomain}\` berhasil diganti jadi \`${newDomain}\``, chatId);
+
+        const escapedOld = escapeMarkdownV2(oldDomain);
+        const escapedNew = escapeMarkdownV2(newDomain);
+
+        const msg = `✅ Domain [${escapedOld}](https://${oldDomain}) berhasil diganti jadi [${escapedNew}](https://${newDomain})`;
+        await sendTelegram(msg, chatId);
       } else {
-        await sendTelegram(`❌ Domain \`${oldDomain}\` tidak ditemukan.`, chatId);
+        const escapedOld = escapeMarkdownV2(oldDomain);
+        await sendTelegram(`❌ Domain \`${escapedOld}\` tidak ditemukan.`, chatId);
       }
     }
   }
@@ -108,12 +114,12 @@ app.post("/", async (req, res) => {
   res.sendStatus(200);
 });
 
-// Endpoint GET untuk cek status webhook
+// Endpoint GET untuk cek status bot
 app.get("/", (req, res) => {
   res.send("✅ Webhook aktif");
 });
 
-// Interval cek domain setiap 1 menit
+// Interval 60 detik untuk cek blokir domain
 setInterval(async () => {
   console.log("🔁 Cek domain dimulai...");
   const domains = fs.readFileSync("list.txt", "utf8")
@@ -127,12 +133,11 @@ setInterval(async () => {
 
     if (blocked === true || blocked === "true") {
       const escaped = escapeMarkdownV2(domain);
-      const msg = `🚨 *Domain diblokir*:\n[${escaped}](https://${escaped})\n\n🤖 Ganti dengan:\n\`/replace ${escaped} domain_baru\``;
+      const msg = `🚨 *Domain diblokir*:\n[${escaped}](https://${domain})\n\n🤖 Ganti dengan:\n\`/replace ${escaped} domain_baru\``;
       await sendTelegram(msg);
     }
   }
-
-}, 60000); // ← penutup blok async function harus di sini
+}, 60000);
 
 // Jalankan server
 app.listen(PORT, () => {
