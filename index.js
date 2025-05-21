@@ -13,7 +13,7 @@ app.use(bodyParser.json());
 
 // Escape karakter khusus MarkdownV2
 function escapeMarkdownV2(text) {
-  return text.replace(/([_\*\[\]\(\)~`>#+=\|{}!\.\-\\])/g, '\\$1');
+  return text.replace(/[-_*\[\]()~`>#+=|{}.!\\]/g, '\\$&');
 }
 
 // Fungsi kirim pesan ke Telegram
