@@ -11,9 +11,9 @@ const PORT = process.env.PORT || 10000;
 const app = express();
 app.use(bodyParser.json());
 
-// Escape khusus MarkdownV2
+// Escape karakter khusus MarkdownV2 (sesuai dokumentasi resmi Telegram)
 function escapeMarkdownV2(text) {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
 
 // Fungsi kirim pesan ke Telegram
@@ -51,16 +51,14 @@ async function isDomainBlocked(domain) {
 
     const rawValue = data[domainKey];
     const parsed = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
-    const blocked = parsed?.blocked;
-
-    return blocked === true || blocked === "true";
+    return parsed?.blocked === true || parsed?.blocked === "true";
   } catch (e) {
     console.error(`❌ Error cek ${domain}:`, e.message);
     return false;
   }
 }
 
-// Endpoint utama untuk handle command Telegram
+// Endpoint command Telegram
 app.post("/", async (req, res) => {
   const msg = req.body.message;
   const chatId = msg?.chat?.id;
@@ -71,13 +69,18 @@ app.post("/", async (req, res) => {
   if (text === "/list") {
     const data = fs.readFileSync("list.txt", "utf8")
       .split("\n")
-      .map((d) => d.trim())
+      .map(d => d.trim())
       .filter(Boolean)
       .slice(-15);
-    const msgList = `🧾 *Daftar 15 Domain Terakhir:*\n` +
+
+    const msgList =
+      "🧾 *Daftar 15 Domain Terakhir:*\n" +
       data.map((d, i) => `${i + 1}. [${escapeMarkdownV2(d)}](https://${d})`).join("\n");
+
     await sendTelegram(msgList, chatId);
-  } else if (text.startsWith("/replace")) {
+  }
+
+  else if (text.startsWith("/replace")) {
     const parts = text.split(" ");
     if (parts.length < 3) {
       await sendTelegram("❌ Format salah\\!\nContoh: `/replace domain_lama domain_baru`", chatId);
@@ -88,7 +91,7 @@ app.post("/", async (req, res) => {
       let list = fs.readFileSync(filePath, "utf8").split("\n");
       let updated = false;
 
-      list = list.map((line) => {
+      list = list.map(line => {
         if (line.trim().toLowerCase() === oldDomain) {
           updated = true;
           return newDomain;
@@ -101,7 +104,6 @@ app.post("/", async (req, res) => {
 
         const escapedOld = escapeMarkdownV2(oldDomain);
         const escapedNew = escapeMarkdownV2(newDomain);
-
         const msg = `✅ Domain [${escapedOld}](https://${oldDomain}) berhasil diganti jadi [${escapedNew}](https://${newDomain})`;
         await sendTelegram(msg, chatId);
       } else {
@@ -114,24 +116,24 @@ app.post("/", async (req, res) => {
   res.sendStatus(200);
 });
 
-// Endpoint GET untuk cek status bot
+// Cek webhook aktif
 app.get("/", (req, res) => {
   res.send("✅ Webhook aktif");
 });
 
-// Interval 60 detik untuk cek blokir domain
+// Interval pengecekan domain tiap 60 detik
 setInterval(async () => {
   console.log("🔁 Cek domain dimulai...");
   const domains = fs.readFileSync("list.txt", "utf8")
     .split("\n")
-    .map((d) => d.trim())
+    .map(d => d.trim())
     .filter(Boolean);
 
   for (const domain of domains) {
     const blocked = await isDomainBlocked(domain);
-    console.log(`[CHECK] ${domain} => ${blocked} (${typeof blocked})`);
+    console.log(`[CHECK] ${domain} => ${blocked}`);
 
-    if (blocked === true || blocked === "true") {
+    if (blocked) {
       const escaped = escapeMarkdownV2(domain);
       const msg = `🚨 *Domain diblokir*:\n[${escaped}](https://${domain})\n\n🤖 Ganti dengan:\n\`/replace ${escaped} domain_baru\``;
       await sendTelegram(msg);
@@ -139,7 +141,7 @@ setInterval(async () => {
   }
 }, 60000);
 
-// Jalankan server
+// Jalankan bot
 app.listen(PORT, () => {
   console.log(`🚀 Bot listening on port ${PORT}`);
 });
