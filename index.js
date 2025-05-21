@@ -126,10 +126,11 @@ setInterval(async () => {
   console.log(`[CHECK] ${domain} => ${blocked} (${typeof blocked})`);
 
   if (blocked === true || blocked === "true") {
-    const msg = `🚨 *Domain diblokir*: \`${domain}\`\n\n🤖 Ganti dengan:\n/replace ${domain} domain_baru`;
-    await sendTelegram(msg);
-  }
+  const escaped = escapeMarkdownV2(domain);
+  const msg = `🚨 *Domain diblokir*:\n[${escaped}](https://${escaped})\n\n🤖 Ganti dengan:\n\`/replace ${escaped} domain_baru\``;
+  await sendTelegram(msg);
 }
+    
 }, 60000);
 
 // Jalankan server
