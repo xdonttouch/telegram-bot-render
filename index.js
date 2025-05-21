@@ -122,16 +122,17 @@ setInterval(async () => {
     .filter(Boolean);
 
   for (const domain of domains) {
-  const blocked = await isDomainBlocked(domain);
-  console.log(`[CHECK] ${domain} => ${blocked} (${typeof blocked})`);
+    const blocked = await isDomainBlocked(domain);
+    console.log(`[CHECK] ${domain} => ${blocked} (${typeof blocked})`);
 
-  if (blocked === true || blocked === "true") {
-  const escaped = escapeMarkdownV2(domain);
-  const msg = `🚨 *Domain diblokir*:\n[${escaped}](https://${escaped})\n\n🤖 Ganti dengan:\n\`/replace ${escaped} domain_baru\``;
-  await sendTelegram(msg);
-}
-    
-}, 60000);
+    if (blocked === true || blocked === "true") {
+      const escaped = escapeMarkdownV2(domain);
+      const msg = `🚨 *Domain diblokir*:\n[${escaped}](https://${escaped})\n\n🤖 Ganti dengan:\n\`/replace ${escaped} domain_baru\``;
+      await sendTelegram(msg);
+    }
+  }
+
+}, 60000); // ← penutup blok async function harus di sini
 
 // Jalankan server
 app.listen(PORT, () => {
