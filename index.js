@@ -35,18 +35,6 @@ async function sendTelegram(message, chatId = CHAT_ID) {
   }
 }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const result = await res.json();
-  if (!result.ok) {
-    throw new Error(result.description || "Gagal kirim pesan");
-  }
-}
-
 // Fungsi cek status domain
 async function isDomainBlocked(domain) {
   try {
