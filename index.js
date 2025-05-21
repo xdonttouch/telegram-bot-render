@@ -28,7 +28,9 @@ async function isDomainBlocked(domain) {
     const url = `https://check.skiddle.id/?domain=${domain}&json=true`;
     const res = await fetch(url);
     const data = await res.json();
-    return data?.[domain]?.blocked === true;
+
+    const blockedValue = data?.[domain]?.blocked;
+    return blockedValue === true || blockedValue === "true"; // ⬅️ PERBAIKAN DI SINI
   } catch (e) {
     console.error(`❌ Error cek ${domain}:`, e.message);
     return false;
