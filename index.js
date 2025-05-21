@@ -11,15 +11,22 @@ const PORT = process.env.PORT || 10000;
 // Fungsi kirim pesan ke Telegram
 async function sendTelegram(message, chatId = CHAT_ID) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
-  await fetch(url, {
+  const payload = {
+    chat_id: chatId,
+    text: message,
+    parse_mode: "Markdown",
+  };
+
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: message,
-      parse_mode: "Markdown",
-    }),
+    body: JSON.stringify(payload),
   });
+
+  const result = await res.json();
+  if (!result.ok) {
+    throw new Error(result.description || "Gagal kirim pesan");
+  }
 }
 
 // Fungsi cek status domain
@@ -109,13 +116,14 @@ setInterval(async () => {
     .filter(Boolean);
 
   for (const domain of domains) {
-    const blocked = await isDomainBlocked(domain);
-    console.log(`[CHECK] ${domain} => ${blocked ? "❌ Blokir" : "✅ Aman"}`);
-    if (blocked) {
-      const msg = `🚨 *Domain diblokir*: \`${domain}\`\n\n🤖 Ganti dengan:\n/replace ${domain} domain_baru`;
-      await sendTelegram(msg);
-    }
+  const blocked = await isDomainBlocked(domain);
+  console.log(`[CHECK] ${domain} => ${blocked} (${typeof blocked})`);
+
+  if (blocked === true || blocked === "true") {
+    const msg = `🚨 *Domain diblokir*: \`${domain}\`\n\n🤖 Ganti dengan:\n/replace ${domain} domain_baru`;
+    await sendTelegram(msg);
   }
+}
 }, 60000);
 
 // Jalankan server
