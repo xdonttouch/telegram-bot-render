@@ -11,6 +11,10 @@ const PORT = process.env.PORT || 10000;
 const app = express();
 app.use(bodyParser.json());
 
+app.listen(PORT, () => {
+  console.log(`✅ Server aktif di PORT: ${PORT}`);
+});
+
 // Fungsi kirim pesan ke Telegram
 async function sendTelegram(message, chatId = CHAT_ID) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
