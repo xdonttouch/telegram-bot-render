@@ -108,7 +108,7 @@ app.post("/", (req, res) => {
 
         if (updated) {
           fs.writeFileSync(filePath, list.join("\n") + "\n");
-          await sendTelegram(`✅ Domain ${oldDomain} berhasil diganti jadi ${newDomain}`, chatId);
+          await sendTelegram(`✅ Domain \`${oldDomain}\` berhasil diganti jadi \`${newDomain}\``, chatId);
         } else {
           await sendTelegram(`❌ Domain ${oldDomain} tidak ditemukan.`, chatId);
         }
