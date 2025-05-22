@@ -6,7 +6,7 @@ const fetch = require("node-fetch");
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 10000;
 
 const app = express();
 app.use(bodyParser.json());
