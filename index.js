@@ -48,6 +48,11 @@ async function isDomainBlocked(domain) {
   }
 }
 
+// Fungsi untuk mencegah domain dianggap link aktif oleh Telegram
+function breakAutoLink(domain) {
+  return domain.replace(/\./g, "​."); // Titik diganti titik + ZWSP (U+200B)
+}
+
 // Endpoint webhook Telegram
 app.post("/", (req, res) => {
   res.sendStatus(200); // Biar Telegram gak timeout
@@ -107,7 +112,9 @@ app.post("/", (req, res) => {
 
         if (updated) {
           fs.writeFileSync(filePath, list.join("\n") + "\n");
-          await sendTelegram(`✅ Domain ${oldDomain} berhasil diganti jadi ${newDomain}`, chatId);
+          const oldMasked = breakAutoLink(oldDomain);
+          const newMasked = breakAutoLink(newDomain);
+          await sendTelegram(`✅ Domain ${oldMasked} berhasil diganti jadi ${newMasked}`, chatId);
         } else {
           await sendTelegram(`❌ Domain ${oldDomain} tidak ditemukan.`, chatId);
         }
@@ -135,7 +142,8 @@ setInterval(async () => {
     const blocked = await isDomainBlocked(domain);
     console.log(`[CHECK] ${domain} => ${blocked}`);
     if (blocked) {
-      const msg = `🚨 Domain diblokir: ${domain}\n\n🤖 Ganti dengan:\n/replace ${domain} namadomainbaru`;
+      const masked = breakAutoLink(domain);
+      const msg = `🚨 Domain diblokir: ${masked}\n\n🤖 Ganti dengan:\n/replace ${masked} namadomainbaru`;
       await sendTelegram(msg);
     }
   }
