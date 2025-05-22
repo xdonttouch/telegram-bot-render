@@ -17,7 +17,6 @@ async function sendTelegram(message, chatId = CHAT_ID) {
   const payload = {
     chat_id: chatId,
     text: message,
-    parse_mode: "Markdown", // ✅ Lebih toleran, gak perlu escape ribet
     disable_web_page_preview: true,
   };
 
@@ -136,7 +135,7 @@ setInterval(async () => {
     const blocked = await isDomainBlocked(domain);
     console.log(`[CHECK] ${domain} => ${blocked}`);
     if (blocked) {
-      const msg = `🚨 *Domain diblokir*: ${domain}\n\n🤖 Ganti dengan:\n/replace ${domain} namadomainbaru`;
+      const msg = `🚨 Domain diblokir: ${domain}\n\n🤖 Ganti dengan:\n/replace ${domain} namadomainbaru`;
       await sendTelegram(msg);
     }
   }
