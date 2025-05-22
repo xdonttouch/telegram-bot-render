@@ -78,7 +78,8 @@ app.post("/", (req, res) => {
           .filter(Boolean)
           .slice(-15);
 
-        const listMsg = `🧾 *Daftar 15 Domain Terakhir:*\n` + data.map((d, i) => `${i + 1}. ${d}`).join("\n");
+        const listMsg = `🧾 *Daftar 15 Domain Terakhir:*\n` + 
+        data.map((d, i) => `${i + 1}\\.\ ${escapeMarkdownV2(d)}`).join("\n");
         await sendTelegram(listMsg, chatId);
       }
 
