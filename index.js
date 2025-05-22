@@ -6,14 +6,10 @@ const fetch = require("node-fetch");
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 80;
 
 const app = express();
 app.use(bodyParser.json());
-
-app.listen(PORT, () => {
-  console.log(`✅ Server aktif di PORT: ${PORT}`);
-});
 
 // Fungsi kirim pesan ke Telegram
 async function sendTelegram(message, chatId = CHAT_ID) {
@@ -21,6 +17,7 @@ async function sendTelegram(message, chatId = CHAT_ID) {
   const payload = {
     chat_id: chatId,
     text: message,
+    parse_mode: "Markdown", // ✅ Lebih toleran, gak perlu escape ribet
     disable_web_page_preview: true,
   };
 
@@ -52,11 +49,6 @@ async function isDomainBlocked(domain) {
   }
 }
 
-// Fungsi untuk copy link sekali klik
-function escapeMarkdownV2(text) {
-  return text.replace(/([_\*\[\]\(\)\~\`\>\#\+\=\|\{\}\.\!\-\\])/g, '\\$1');
-}
-
 // Endpoint webhook Telegram
 app.post("/", (req, res) => {
   res.sendStatus(200); // Biar Telegram gak timeout
@@ -77,8 +69,7 @@ app.post("/", (req, res) => {
           .filter(Boolean)
           .slice(-15);
 
-        const listMsg = `🧾 *Daftar 15 Domain Terakhir:*\n` + 
-        data.map((d, i) => `${i + 1}\\.\ ${escapeMarkdownV2(d)}`).join("\n");
+        const listMsg = `🧾 *Daftar 15 Domain Terakhir:*\n` + data.map((d, i) => `${i + 1}. ${d}`).join("\n");
         await sendTelegram(listMsg, chatId);
       }
 
@@ -117,21 +108,20 @@ app.post("/", (req, res) => {
 
         if (updated) {
           fs.writeFileSync(filePath, list.join("\n") + "\n");
-          const oldEscaped = escapeMarkdownV2(oldDomain);
-          const newEscaped = escapeMarkdownV2(newDomain);
-          const msg = `✅ Domain ${oldDomain} berhasil diganti jadi ${newDomain}\n\n🤖 Gunakan perintah berikut:\n/replace ${oldDomain} ${newDomain}`;
-          await sendTelegram(msg, chatId);
+          await sendTelegram(`✅ Domain ${oldDomain} berhasil diganti jadi ${newDomain}`, chatId);
         } else {
-          const oldEscaped = escapeMarkdownV2(oldDomain);
-          const msg = `❌ Domain ${oldEscaped} tidak ditemukan.\n\nCoba:\n/replace ${oldDomain} domainbaru.xyz`;
-          await sendTelegram(msg, chatId);
+          await sendTelegram(`❌ Domain ${oldDomain} tidak ditemukan.`, chatId);
         }
       }
-
     } catch (e) {
       console.error("❌ Error di handler:", e.message);
     }
   })();
+});
+
+// Endpoint cek aktif
+app.get("/", (req, res) => {
+  res.send("✅ Webhook aktif");
 });
 
 // Cek domain setiap 1 menit
@@ -144,12 +134,15 @@ setInterval(async () => {
 
   for (const domain of domains) {
     const blocked = await isDomainBlocked(domain);
-    console.log(`[CHECK] ${domain} -> ${blocked}`);
-
+    console.log(`[CHECK] ${domain} => ${blocked}`);
     if (blocked) {
-      const escaped = escapeMarkdownV2(domain);
-      const msg = `🚨 Domain diblokir:\n${domain}\n\n🤖 Silakan ganti dengan domain baru via:\n/replace ${domain} namadomainbaru`;
+      const msg = `🚨 *Domain diblokir*: ${domain}\n\n🤖 Ganti dengan:\n/replace ${domain} namadomainbaru`;
       await sendTelegram(msg);
     }
   }
 }, 60_000);
+
+// Start
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Bot listening on port ${PORT}`);
+});
