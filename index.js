@@ -17,6 +17,7 @@ async function sendTelegram(message, chatId = CHAT_ID) {
   const payload = {
     chat_id: chatId,
     text: message,
+    parse_mode: "MarkdownV2",
     disable_web_page_preview: true,
   };
 
@@ -48,9 +49,9 @@ async function isDomainBlocked(domain) {
   }
 }
 
-// Fungsi untuk mencegah domain dianggap link aktif oleh Telegram
-function breakAutoLink(domain) {
-  return domain.replace(/\./g, "​."); // Titik diganti titik + ZWSP (U+200B)
+// Fungsi untuk copy link sekali klik
+function escapeMarkdownV2(text) {
+  return text.replace(/([_\*\[\]\(\)\~\`\>\#\+\=\|\{\}\.\!\-\\])/g, '\\$1');
 }
 
 // Endpoint webhook Telegram
@@ -112,13 +113,16 @@ app.post("/", (req, res) => {
 
         if (updated) {
           fs.writeFileSync(filePath, list.join("\n") + "\n");
-          const oldMasked = breakAutoLink(oldDomain);
-          const newMasked = breakAutoLink(newDomain);
-          await sendTelegram(`✅ Domain ${oldMasked} berhasil diganti jadi ${newMasked}`, chatId);
+
+          const oldEscaped = escapeMarkdownV2(oldDomain);
+          const newEscaped = escapeMarkdownV2(newDomain);
+
+          const msg = `✅ Domain \\`${oldEscaped}\\` berhasil diganti jadi \\`${newEscaped}\\``;
+          await sendTelegram(msg, chatId);
         } else {
-          await sendTelegram(`❌ Domain ${oldDomain} tidak ditemukan.`, chatId);
+          const oldEscaped = escapeMarkdownV2(oldDomain);
+          await sendTelegram(`❌ Domain \\`${oldEscaped}\\` tidak ditemukan.`, chatId);
         }
-      }
     } catch (e) {
       console.error("❌ Error di handler:", e.message);
     }
@@ -139,14 +143,15 @@ setInterval(async () => {
     .filter(Boolean);
 
   for (const domain of domains) {
-    const blocked = await isDomainBlocked(domain);
-    console.log(`[CHECK] ${domain} => ${blocked}`);
-    if (blocked) {
-      const masked = breakAutoLink(domain);
-      const msg = `🚨 Domain diblokir: ${masked}\n\n🤖 Ganti dengan:\n/replace ${masked} namadomainbaru`;
-      await sendTelegram(msg);
-    }
+  const blocked = await isDomainBlocked(domain);
+  console.log(`[CHECK] ${domain} -> ${blocked}`);
+  
+  if (blocked) {
+    const escapedDomain = escapeMarkdownV2(domain);  // ✅ escape domain yang sedang di-loop
+    const msg = `🚨 *Domain diblokir*: \`${escapedDomain}\`\n\n🤖 Ganti dengan:\n\`/replace ${escapedDomain} namadomainbaru\``;
+    await sendTelegram(msg);
   }
+}
 }, 60_000);
 
 // Start
