@@ -11,12 +11,17 @@ const PORT = process.env.PORT || 80;
 const app = express();
 app.use(bodyParser.json());
 
+function breakAutoLink(domain) {
+  return domain.replace(/\./g, "\u200B."); // titik + Zero Width Space
+}
+
 // Fungsi kirim pesan ke Telegram
 async function sendTelegram(message, chatId = CHAT_ID) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   const payload = {
     chat_id: chatId,
     text: message,
+    parse_mode: "Markdown",
     parse_mode: "Markdown", // ✅ Lebih toleran, gak perlu escape ribet
     disable_web_page_preview: true,
   };
@@ -108,9 +113,12 @@ app.post("/", (req, res) => {
 
         if (updated) {
           fs.writeFileSync(filePath, list.join("\n") + "\n");
-          await sendTelegram(`✅ Domain ${oldDomain} berhasil diganti jadi ${newDomain}`, chatId);
+          const oldMasked = `\`${breakAutoLink(oldDomain)}\``;
+          const newMasked = `\`${breakAutoLink(newDomain)}\``;
+          await sendTelegram(`✅ Domain ${oldMasked} berhasil diganti jadi ${newMasked}`, chatId);
         } else {
-          await sendTelegram(`❌ Domain ${oldDomain} tidak ditemukan.`, chatId);
+          const oldMasked = `\`${breakAutoLink(oldDomain)}\``;
+          await sendTelegram(`❌ Domain ${oldMasked} tidak ditemukan.`, chatId);
         }
       }
     } catch (e) {
@@ -136,8 +144,9 @@ setInterval(async () => {
     const blocked = await isDomainBlocked(domain);
     console.log(`[CHECK] ${domain} => ${blocked}`);
     if (blocked) {
-      const msg = `🚨 *Domain diblokir*: ${domain}\n\n🤖 Ganti dengan:\n/replace ${domain} namadomainbaru`;
-      await sendTelegram(msg);
+      const masked = breakAutoLink(domain); // agar tidak jadi link
+      const msg = `🚨 *Domain diblokir*: \`${masked}\`\n\n🤖 Ganti dengan:\n/replace ${domain} namadomainbaru`;
+      await sendTelegram(msg, chatId);
     }
   }
 }, 60_000);
