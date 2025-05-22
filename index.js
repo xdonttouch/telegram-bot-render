@@ -136,7 +136,9 @@ setInterval(async () => {
     const blocked = await isDomainBlocked(domain);
     console.log(`[CHECK] ${domain} => ${blocked}`);
     if (blocked) {
-      const msg = `🚨 *Domain diblokir*: ${domain}\n\n🤖 Ganti dengan:\n/replace ${domain} namadomainbaru`;
+      const msg = `🚨 *Domain diblokir*: \`${domain}\`
+      🤖 Ganti dengan:
+      /replace \`${domain}\` namadomainbaru`;
       await sendTelegram(msg);
     }
   }
