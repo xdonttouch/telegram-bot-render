@@ -1,21 +1,13 @@
 require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
+const { google } = require("googleapis");
 const fs = require("fs");
 const fetch = require("node-fetch");
 
-function loadDb() {
-  try {
-    const raw = fs.readFileSync("db.json", "utf8");
-    return JSON.parse(raw);
-  } catch (e) {
-    return { domainList: [], notifiedBlocked: [] };
-  }
-}
-
-function saveDb(data) {
-  fs.writeFileSync("db.json", JSON.stringify(data, null, 2));
-}
+const SPREADSHEET_ID = "1plB67cM8a2B_aLPx3o2F_bUwU1m9GwYevqyOYDL0SwQ";
+const SHEET_NAME = "domain_data";
+const CREDENTIALS_PATH = "/etc/secrets/domain-monitor.json";
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
@@ -23,6 +15,46 @@ const PORT = process.env.PORT || 80;
 
 const app = express();
 app.use(bodyParser.json());
+
+// Setup auth Google Sheets
+const auth = new google.auth.GoogleAuth({
+  keyFile: CREDENTIALS_PATH,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+});
+const sheets = google.sheets("v4");
+
+async function getClient() {
+  return await auth.getClient();
+}
+
+// Load domain list from Google Sheets
+async function getDomainList() {
+  const client = await getClient();
+  const res = await sheets.spreadsheets.values.get({
+    auth: client,
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_NAME}!A2:A`,
+  });
+  return res.data.values?.flat() || [];
+}
+
+// Replace old domain with new one in Google Sheets
+async function replaceDomain(oldDomain, newDomain) {
+  const list = await getDomainList();
+  const index = list.findIndex(d => d.toLowerCase() === oldDomain.toLowerCase());
+  if (index === -1) return false;
+
+  const client = await getClient();
+  const updateRange = `${SHEET_NAME}!A${index + 2}`;
+  await sheets.spreadsheets.values.update({
+    auth: client,
+    spreadsheetId: SPREADSHEET_ID,
+    range: updateRange,
+    valueInputOption: "RAW",
+    requestBody: { values: [[newDomain]] },
+  });
+  return true;
+}
 
 async function sendTelegram(message, chatId = CHAT_ID) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
@@ -60,6 +92,8 @@ async function isDomainBlocked(domain) {
   }
 }
 
+let notifiedBlocked = [];
+
 app.post("/", (req, res) => {
   res.sendStatus(200);
 
@@ -73,7 +107,7 @@ app.post("/", (req, res) => {
       console.log("📥 Command diterima:", text);
 
       if (text === "/list") {
-        const data = loadDb().domainList;
+        const data = await getDomainList();
         const listMsg = `🧾 *Daftar 15 Domain Terakhir:*\n` + data.slice(-15).map((d, i) => `${i + 1}. ${d}`).join("\n");
         await sendTelegram(listMsg, chatId);
       }
@@ -94,26 +128,14 @@ app.post("/", (req, res) => {
           return;
         }
 
-        const db = loadDb();
-        let list = db.domainList.map(d => d.trim());
-
-        if (list.some(d => d.toLowerCase() === newDomain.toLowerCase())) {
+        const list = await getDomainList();
+        if (list.includes(newDomain)) {
           await sendTelegram(`⚠️ Domain \`${newDomain}\` sudah ada di list.`, chatId);
           return;
         }
 
-        let updated = false;
-        list = list.map(d => {
-          if (d.toLowerCase() === oldDomain) {
-            updated = true;
-            return newDomain;
-          }
-          return d;
-        });
-
-        if (updated) {
-          db.domainList = list;
-          saveDb(db);
+        const replaced = await replaceDomain(oldDomain, newDomain);
+        if (replaced) {
           await sendTelegram(`✅ Domain \`${oldDomain}\` berhasil diganti jadi \`${newDomain}\``, chatId);
         } else {
           await sendTelegram(`❌ Domain \`${oldDomain}\` tidak ditemukan.`, chatId);
@@ -131,28 +153,24 @@ app.get("/", (req, res) => {
 
 setInterval(async () => {
   console.log("🔁 Cek domain dimulai...");
-  const db = loadDb();
-  const domains = db.domainList;
-  const notified = db.notifiedBlocked;
+  const domains = await getDomainList();
 
   for (const domain of domains) {
     const blocked = await isDomainBlocked(domain);
     console.log(`[CHECK] ${domain} => ${blocked}`);
 
-    const lowerDomain = domain.toLowerCase();
+    const lower = domain.toLowerCase();
 
-    if (blocked && !notified.includes(lowerDomain)) {
+    if (blocked && !notifiedBlocked.includes(lower)) {
       const msg = `🚨 *Domain diblokir*: \`${domain}\`\n\n🤖 Ganti dengan:\n/replace \`${domain}\` namadomainbaru`;
       await sendTelegram(msg);
-      db.notifiedBlocked.push(lowerDomain);
+      notifiedBlocked.push(lower);
     }
 
-    if (!blocked && notified.includes(lowerDomain)) {
-      db.notifiedBlocked = db.notifiedBlocked.filter(d => d !== lowerDomain);
+    if (!blocked && notifiedBlocked.includes(lower)) {
+      notifiedBlocked = notifiedBlocked.filter(d => d !== lower);
     }
   }
-
-  saveDb(db);
 }, 60_000);
 
 app.listen(PORT, "0.0.0.0", () => {
