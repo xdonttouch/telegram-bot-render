@@ -144,8 +144,8 @@ setInterval(async () => {
     const blocked = await isDomainBlocked(domain);
     console.log(`[CHECK] ${domain} => ${blocked}`);
     if (blocked) {
-      const masked = breakAutoLink(domain); // agar tidak jadi link
-      const msg = `🚨 *Domain diblokir*: \`${masked}\`\n\n🤖 Ganti dengan:\n/replace ${domain} namadomainbaru`;
+      const masked = breakAutoLink(domain);
+      const msg = `🚨 Domain diblokir: ${masked}\n\n🤖 Ganti dengan:\n/replace ${domain} namadomainbaru`;
       await sendTelegram(msg, chatId);
     }
   }
