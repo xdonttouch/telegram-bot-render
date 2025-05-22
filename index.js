@@ -21,7 +21,6 @@ async function sendTelegram(message, chatId = CHAT_ID) {
   const payload = {
     chat_id: chatId,
     text: message,
-    parse_mode: "MarkdownV2",
     disable_web_page_preview: true,
   };
 
@@ -120,11 +119,11 @@ app.post("/", (req, res) => {
           fs.writeFileSync(filePath, list.join("\n") + "\n");
           const oldEscaped = escapeMarkdownV2(oldDomain);
           const newEscaped = escapeMarkdownV2(newDomain);
-          const msg = `✅ Domain \\\`${oldEscaped}\\\` berhasil diganti jadi \\\`${newEscaped}\\\``;
+          const msg = `✅ Domain ${oldDomain} berhasil diganti jadi ${newDomain}\n\n🤖 Gunakan perintah berikut:\n/replace ${oldDomain} ${newDomain}`;
           await sendTelegram(msg, chatId);
         } else {
           const oldEscaped = escapeMarkdownV2(oldDomain);
-          const msg = `❌ Domain \\\`${oldEscaped}\\\` tidak ditemukan.`;
+          const msg = `❌ Domain ${oldEscaped} tidak ditemukan.\n\nCoba:\n/replace ${oldDomain} domainbaru.xyz`;
           await sendTelegram(msg, chatId);
         }
       }
@@ -134,3 +133,23 @@ app.post("/", (req, res) => {
     }
   })();
 });
+
+// Cek domain setiap 1 menit
+setInterval(async () => {
+  console.log("🔁 Cek domain dimulai...");
+  const domains = fs.readFileSync("list.txt", "utf8")
+    .split("\n")
+    .map(d => d.trim())
+    .filter(Boolean);
+
+  for (const domain of domains) {
+    const blocked = await isDomainBlocked(domain);
+    console.log(`[CHECK] ${domain} -> ${blocked}`);
+
+    if (blocked) {
+      const escaped = escapeMarkdownV2(domain);
+      const msg = `🚨 Domain diblokir:\n${domain}\n\n🤖 Silakan ganti dengan domain baru via:\n/replace ${domain} namadomainbaru`;
+      await sendTelegram(msg);
+    }
+  }
+}, 60_000);
