@@ -108,7 +108,8 @@ app.post("/", (req, res) => {
 
       if (text === "/list") {
         const data = await getDomainList();
-        const listMsg = `🧾 *Daftar 15 Domain Terakhir:*\n` + data.slice(-15).map((d, i) => `${i + 1}. ${d}`).join("\n");
+        const listMsg = `🧾 *Daftar Seluruh Domain (${data.length}):*\n` +
+        data.map((d, i) => `${i + 1}. ${d}`).join("\n");
         await sendTelegram(listMsg, chatId);
       }
 
