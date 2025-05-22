@@ -113,48 +113,19 @@ app.post("/", (req, res) => {
 
         if (updated) {
           fs.writeFileSync(filePath, list.join("\n") + "\n");
-
           const oldEscaped = escapeMarkdownV2(oldDomain);
           const newEscaped = escapeMarkdownV2(newDomain);
-
-          const msg = `✅ Domain \\`${oldEscaped}\\` berhasil diganti jadi \\`${newEscaped}\\``;
+          const msg = `✅ Domain \\\`${oldEscaped}\\\` berhasil diganti jadi \\\`${newEscaped}\\\``;
           await sendTelegram(msg, chatId);
         } else {
           const oldEscaped = escapeMarkdownV2(oldDomain);
-          await sendTelegram(`❌ Domain \\`${oldEscaped}\\` tidak ditemukan.`, chatId);
+          const msg = `❌ Domain \\\`${oldEscaped}\\\` tidak ditemukan.`;
+          await sendTelegram(msg, chatId);
         }
+      }
+
     } catch (e) {
       console.error("❌ Error di handler:", e.message);
     }
   })();
-});
-
-// Endpoint cek aktif
-app.get("/", (req, res) => {
-  res.send("✅ Webhook aktif");
-});
-
-// Cek domain setiap 1 menit
-setInterval(async () => {
-  console.log("🔁 Cek domain dimulai...");
-  const domains = fs.readFileSync("list.txt", "utf8")
-    .split("\n")
-    .map(d => d.trim())
-    .filter(Boolean);
-
-  for (const domain of domains) {
-  const blocked = await isDomainBlocked(domain);
-  console.log(`[CHECK] ${domain} -> ${blocked}`);
-  
-  if (blocked) {
-    const escapedDomain = escapeMarkdownV2(domain);  // ✅ escape domain yang sedang di-loop
-    const msg = `🚨 *Domain diblokir*: \`${escapedDomain}\`\n\n🤖 Ganti dengan:\n\`/replace ${escapedDomain} namadomainbaru\``;
-    await sendTelegram(msg);
-  }
-}
-}, 60_000);
-
-// Start
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Bot listening on port ${PORT}`);
 });
