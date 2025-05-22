@@ -124,6 +124,9 @@ app.get("/", (req, res) => {
   res.send("✅ Webhook aktif");
 });
 
+const blockedNotifiedFile = "blocked.txt";
+if (!fs.existsSync(blockedNotifiedFile)) fs.writeFileSync(blockedNotifiedFile, "");
+
 // Cek domain setiap 1 menit
 setInterval(async () => {
   console.log("🔁 Cek domain dimulai...");
@@ -132,14 +135,27 @@ setInterval(async () => {
     .map(d => d.trim())
     .filter(Boolean);
 
+  let notified = fs.readFileSync(blockedNotifiedFile, "utf8")
+    .split("\n")
+    .map(d => d.trim().toLowerCase())
+    .filter(Boolean);
+
   for (const domain of domains) {
     const blocked = await isDomainBlocked(domain);
     console.log(`[CHECK] ${domain} => ${blocked}`);
-    if (blocked) {
-      const msg = `🚨 *Domain diblokir*: \`${domain}\`
-      🤖 Ganti dengan:
-      /replace \`${domain}\` namadomainbaru`;
+
+    const lowerDomain = domain.toLowerCase();
+
+    if (blocked && !notified.includes(lowerDomain)) {
+      const msg = `🚨 *Domain diblokir*: \`${domain}\`\n\n🤖 Ganti dengan:\n/replace \`${domain}\` namadomainbaru`;
       await sendTelegram(msg);
+      fs.appendFileSync(blockedNotifiedFile, lowerDomain + "\n");
+    }
+
+    // Jika domain sudah tidak diblokir, hapus dari daftar notified
+    if (!blocked && notified.includes(lowerDomain)) {
+      notified = notified.filter(d => d !== lowerDomain);
+      fs.writeFileSync(blockedNotifiedFile, notified.join("\n") + "\n");
     }
   }
 }, 60_000);
