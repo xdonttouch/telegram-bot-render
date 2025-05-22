@@ -113,8 +113,8 @@ app.post("/", (req, res) => {
 
         if (updated) {
           fs.writeFileSync(filePath, list.join("\n") + "\n");
-          const oldMasked = `\`${breakAutoLink(oldDomain)}\``;
-          const newMasked = `\`${breakAutoLink(newDomain)}\``;
+          const oldMasked = breakAutoLink(oldDomain);
+          nst newMasked = breakAutoLink(newDomain);
           await sendTelegram(`✅ Domain ${oldMasked} berhasil diganti jadi ${newMasked}`, chatId);
         } else {
           const oldMasked = `\`${breakAutoLink(oldDomain)}\``;
