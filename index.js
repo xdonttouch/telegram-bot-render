@@ -107,12 +107,17 @@ app.post("/", (req, res) => {
       console.log("📥 Command diterima:", text);
 
       if (text === "/list") {
-        const data = await getDomainList();
-        const listMsg = `🧾 *Daftar Seluruh Domain (${data.length}):*\n` +
-        data.map((d, i) => `${i + 1}. \`${d}\``).join("\n");
-        await sendTelegram(listMsg, chatId);
+      const data = await getDomainList();
+      const last20 = data.slice(-20); // Ambil 20 domain terakhir
+    
+      const listMsg = last20.length === 0
+        ? "📭 List kosong."
+        : `🧾 *Daftar 20 Domain Terbaru (Total ${data.length}):*\n` +
+          last20.map((d, i) => `${i + 1}. \`${d}\``).join("\n");
+    
+      await sendTelegram(listMsg, chatId);
       }
-
+        
       else if (text.startsWith("/replace ")) {
         const parts = text.trim().split(" ");
         if (parts.length < 3) {
